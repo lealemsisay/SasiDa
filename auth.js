@@ -66,12 +66,22 @@
   // ─── THEME ─────────────────────────────────────
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }
+    localStorage.setItem('theme', theme);    
+    // Update icon visibility
+    const sunIcon = document.querySelector('.theme-icon.sun');
+    const moonIcon = document.querySelector('.theme-icon.moon');
+    
+    if (theme === 'light') {
+      if (sunIcon) sunIcon.style.display = 'none';
+      if (moonIcon) moonIcon.style.display = 'inline-block';
+    } else {
+      if (sunIcon) sunIcon.style.display = 'inline-block';
+      if (moonIcon) moonIcon.style.display = 'none';
+    }  }
 
   var storedTheme = localStorage.getItem('theme');
   if (storedTheme) applyTheme(storedTheme);
-  else applyTheme('dark');
+  else applyTheme('light');
 
   if (themeToggle) {
     themeToggle.addEventListener('click', function() {
@@ -120,9 +130,29 @@
 
   // ─── PASSWORD TOGGLE ──────────────────────────
   document.querySelectorAll('[id^="toggle"]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var input = this.previousElementSibling;
-      if (input && input.type) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Try to find the password input field
+      var input = null;
+      
+      // Method 1: Previous element sibling
+      if (this.previousElementSibling && this.previousElementSibling.type === 'password') {
+        input = this.previousElementSibling;
+      }
+      
+      // Method 2: Find input in parent
+      if (!input && this.parentElement) {
+        input = this.parentElement.querySelector('input[type="password"]');
+      }
+      
+      // Method 3: Find input in parent's parent
+      if (!input && this.parentElement && this.parentElement.parentElement) {
+        input = this.parentElement.parentElement.querySelector('input[type="password"], input[type="text"]');
+      }
+      
+      if (input) {
         if (input.type === 'password') {
           input.type = 'text';
           this.textContent = '🙈';

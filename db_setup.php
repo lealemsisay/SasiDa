@@ -27,19 +27,12 @@ try {
     $pdo->exec("USE `$db_name`");
     echo "Using database `$db_name`.<br>";
 
-    // 3. Drop existing tables if they exist to prevent foreign key errors during re-migration
+    // 3. Drop existing tables to prevent foreign key errors
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
     $tables = [
-        'reviews',
-        'recently_viewed_products',
-        'notifications',
-        'wishlists',
-        'order_items',
-        'orders',
-        'customer_addresses',
-        'users',
-        'products',
-        'categories'
+        'reviews', 'recently_viewed_products', 'notifications', 'wishlists',
+        'order_items', 'orders', 'customer_addresses', 'users',
+        'products', 'categories', 'brands', 'settings'
     ];
     foreach ($tables as $table) {
         $pdo->exec("DROP TABLE IF EXISTS `$table`");
@@ -49,16 +42,26 @@ try {
 
     // 4. Create Tables
 
-    // Categories table
+    // Categories
     $pdo->exec("CREATE TABLE categories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
+        description TEXT DEFAULT NULL,
         icon VARCHAR(50) DEFAULT NULL,
         color VARCHAR(20) DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `categories` created.<br>";
 
-    // Products table
+    // Brands
+    $pdo->exec("CREATE TABLE brands (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        description TEXT DEFAULT NULL,
+        image VARCHAR(255) DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "Table `brands` created.<br>";
+
+    // Products (now with stock & low_stock_threshold)
     $pdo->exec("CREATE TABLE products (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -72,12 +75,14 @@ try {
         description TEXT DEFAULT NULL,
         variants TEXT DEFAULT NULL,
         in_stock BOOLEAN DEFAULT TRUE,
+        stock INT(11) DEFAULT 0,
+        low_stock_threshold INT(11) DEFAULT 5,
         status VARCHAR(50) DEFAULT 'visible',
         FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `products` created.<br>";
 
-    // Users table
+    // Users
     $pdo->exec("CREATE TABLE users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         full_name VARCHAR(255) NOT NULL,
@@ -92,7 +97,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `users` created.<br>";
 
-    // Customer Addresses table
+    // Customer Addresses
     $pdo->exec("CREATE TABLE customer_addresses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -110,7 +115,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `customer_addresses` created.<br>";
 
-    // Orders table
+    // Orders
     $pdo->exec("CREATE TABLE orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_number VARCHAR(50) UNIQUE NOT NULL,
@@ -125,7 +130,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `orders` created.<br>";
 
-    // Order Items table
+    // Order Items
     $pdo->exec("CREATE TABLE order_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_id INT NOT NULL,
@@ -139,7 +144,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `order_items` created.<br>";
 
-    // Wishlist table
+    // Wishlists
     $pdo->exec("CREATE TABLE wishlists (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -151,7 +156,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `wishlists` created.<br>";
 
-    // Notifications table
+    // Notifications
     $pdo->exec("CREATE TABLE notifications (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -164,7 +169,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `notifications` created.<br>";
 
-    // Recently Viewed Products table
+    // Recently Viewed
     $pdo->exec("CREATE TABLE recently_viewed_products (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -176,7 +181,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `recently_viewed_products` created.<br>";
 
-    // Reviews table
+    // Reviews
     $pdo->exec("CREATE TABLE reviews (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -191,9 +196,20 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     echo "Table `reviews` created.<br>";
 
+    // Settings
+    $pdo->exec("CREATE TABLE settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        setting_key VARCHAR(100) UNIQUE NOT NULL,
+        setting_value TEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "Table `settings` created.<br>";
+
     // 5. Seed Data
 
-    // Seed Categories
+    // Default currency
+    $pdo->exec("INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES ('default_currency', 'ETB')");
+
+    // Categories (same as your SQL dump)
     $categories = [
         ['id' => 1, 'name' => 'Cosmetics', 'icon' => '💄', 'color' => '#f7e1d7'],
         ['id' => 2, 'name' => 'Shoes', 'icon' => '👟', 'color' => '#d9e2e8'],
@@ -204,220 +220,49 @@ try {
         ['id' => 7, 'name' => 'Perfumes', 'icon' => '🧴', 'color' => '#f0d8d4'],
         ['id' => 8, 'name' => 'Vitamins', 'icon' => '💊', 'color' => '#d1d9d9'],
     ];
-
     $catStmt = $pdo->prepare("INSERT INTO categories (id, name, icon, color) VALUES (:id, :name, :icon, :color)");
     foreach ($categories as $cat) {
         $catStmt->execute($cat);
     }
     echo "Seeded categories successfully.<br>";
 
-    // Seed Products
+    // Products (now include stock values)
     $products = [
-        [
-            'id' => 1,
-            'name' => 'Sample Product 1',
-            'price' => 2850.00,
-            'old_price' => null,
-            'image' => '📦',
-            'badge' => null,
-            'category_id' => 1,
-            'rating' => 4.5,
-            'reviews_count' => 12,
-            'description' => 'This is a premium sample product. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-            'variants' => json_encode(['Size: S, M, L', 'Color: Black, White']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 2,
-            'name' => 'Sample Product 2',
-            'price' => 4200.00,
-            'old_price' => null,
-            'image' => '📦',
-            'badge' => null,
-            'category_id' => 2,
-            'rating' => 4.2,
-            'reviews_count' => 8,
-            'description' => 'Another great sample product. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-            'variants' => json_encode(['Size: 38-44', 'Color: Brown, Black']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 3,
-            'name' => 'Sample Product 3',
-            'price' => 3850.00,
-            'old_price' => 5250.00,
-            'image' => '📦',
-            'badge' => null,
-            'category_id' => 3,
-            'rating' => 4.8,
-            'reviews_count' => 20,
-            'description' => 'Premium quality with a classic design. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-            'variants' => json_encode(['Size: S, M, L, XL', 'Color: Navy, Grey']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 4,
-            'name' => 'Sample Product 4',
-            'price' => 7350.00,
-            'old_price' => null,
-            'image' => '📦',
-            'badge' => null,
-            'category_id' => 4,
-            'rating' => 4.0,
-            'reviews_count' => 15,
-            'description' => 'Elegant and timeless. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-            'variants' => json_encode(['One Size', 'Color: Beige, Black']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 5,
-            'name' => 'Sample Best Seller 1',
-            'price' => 1450.00,
-            'old_price' => null,
-            'image' => '⭐',
-            'badge' => 'Best Seller',
-            'category_id' => 1,
-            'rating' => 4.9,
-            'reviews_count' => 45,
-            'description' => 'Our most popular product! Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-            'variants' => json_encode(['Size: One Size', 'Color: Gold, Silver']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 6,
-            'name' => 'Sample Best Seller 2',
-            'price' => 6200.00,
-            'old_price' => null,
-            'image' => '⭐',
-            'badge' => 'Best Seller',
-            'category_id' => 2,
-            'rating' => 4.7,
-            'reviews_count' => 32,
-            'description' => 'Highly rated by our customers. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-            'variants' => json_encode(['Size: 39-45', 'Color: Black, White']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 7,
-            'name' => 'Sample Best Seller 3',
-            'price' => 3990.00,
-            'old_price' => null,
-            'image' => '⭐',
-            'badge' => 'Best Seller',
-            'category_id' => 5,
-            'rating' => 4.6,
-            'reviews_count' => 28,
-            'description' => 'A customer favorite. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-            'variants' => json_encode(['Size: S, M, L', 'Color: Pink, Blue']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 8,
-            'name' => 'Sample Best Seller 4',
-            'price' => 2300.00,
-            'old_price' => null,
-            'image' => '⭐',
-            'badge' => 'Best Seller',
-            'category_id' => 6,
-            'rating' => 4.3,
-            'reviews_count' => 19,
-            'description' => 'Great value for money. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-            'variants' => json_encode(['One Size', 'Color: Red, Black']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 9,
-            'name' => 'Sample New Arrival 1',
-            'price' => 1450.00,
-            'old_price' => null,
-            'image' => '✨',
-            'badge' => 'New',
-            'category_id' => 7,
-            'rating' => 4.4,
-            'reviews_count' => 10,
-            'description' => 'The latest addition to our collection. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-            'variants' => json_encode(['Size: One Size', 'Color: Clear, Amber']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 10,
-            'name' => 'Sample New Arrival 2',
-            'price' => 6200.00,
-            'old_price' => null,
-            'image' => '✨',
-            'badge' => 'New',
-            'category_id' => 8,
-            'rating' => 4.1,
-            'reviews_count' => 7,
-            'description' => 'Fresh off the shelf. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-            'variants' => json_encode(['Size: 39-44', 'Color: White, Grey']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 11,
-            'name' => 'Sample New Arrival 3',
-            'price' => 3990.00,
-            'old_price' => null,
-            'image' => '✨',
-            'badge' => 'New',
-            'category_id' => 3,
-            'rating' => 4.5,
-            'reviews_count' => 14,
-            'description' => 'Trendy and stylish. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-            'variants' => json_encode(['Size: S, M, L', 'Color: Black, White']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ],
-        [
-            'id' => 12,
-            'name' => 'Sample New Arrival 4',
-            'price' => 2300.00,
-            'old_price' => null,
-            'image' => '✨',
-            'badge' => 'New',
-            'category_id' => 4,
-            'rating' => 4.2,
-            'reviews_count' => 9,
-            'description' => 'Just arrived! Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-            'variants' => json_encode(['One Size', 'Color: Gold, Silver']),
-            'in_stock' => 1,
-            'status' => 'visible'
-        ]
+        ['id'=>1,'name'=>'Sample Product 1','price'=>2850,'old_price'=>null,'image'=>'📦','badge'=>null,'category_id'=>1,'rating'=>4.5,'reviews_count'=>12,'description'=>'This is a premium sample product.','variants'=>json_encode(['Size: S, M, L','Color: Black, White']),'in_stock'=>1,'stock'=>25,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>2,'name'=>'Sample Product 2','price'=>4200,'old_price'=>null,'image'=>'📦','badge'=>null,'category_id'=>2,'rating'=>4.2,'reviews_count'=>8,'description'=>'Another great sample product.','variants'=>json_encode(['Size: 38-44','Color: Brown, Black']),'in_stock'=>1,'stock'=>10,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>3,'name'=>'Sample Product 3','price'=>3850,'old_price'=>5250,'image'=>'📦','badge'=>null,'category_id'=>3,'rating'=>4.8,'reviews_count'=>20,'description'=>'Premium quality with a classic design.','variants'=>json_encode(['Size: S, M, L, XL','Color: Navy, Grey']),'in_stock'=>1,'stock'=>15,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>4,'name'=>'Sample Product 4','price'=>7350,'old_price'=>null,'image'=>'📦','badge'=>null,'category_id'=>4,'rating'=>4.0,'reviews_count'=>15,'description'=>'Elegant and timeless.','variants'=>json_encode(['One Size','Color: Beige, Black']),'in_stock'=>1,'stock'=>8,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>5,'name'=>'Sample Best Seller 1','price'=>1450,'old_price'=>null,'image'=>'⭐','badge'=>'Best Seller','category_id'=>1,'rating'=>4.9,'reviews_count'=>45,'description'=>'Our most popular product!','variants'=>json_encode(['Size: One Size','Color: Gold, Silver']),'in_stock'=>1,'stock'=>30,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>6,'name'=>'Sample Best Seller 2','price'=>6200,'old_price'=>null,'image'=>'⭐','badge'=>'Best Seller','category_id'=>2,'rating'=>4.7,'reviews_count'=>32,'description'=>'Highly rated by our customers.','variants'=>json_encode(['Size: 39-45','Color: Black, White']),'in_stock'=>1,'stock'=>12,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>7,'name'=>'Sample Best Seller 3','price'=>3990,'old_price'=>null,'image'=>'⭐','badge'=>'Best Seller','category_id'=>5,'rating'=>4.6,'reviews_count'=>28,'description'=>'A customer favorite.','variants'=>json_encode(['Size: S, M, L','Color: Pink, Blue']),'in_stock'=>1,'stock'=>20,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>8,'name'=>'Sample Best Seller 4','price'=>2300,'old_price'=>null,'image'=>'⭐','badge'=>'Best Seller','category_id'=>6,'rating'=>4.3,'reviews_count'=>19,'description'=>'Great value for money.','variants'=>json_encode(['One Size','Color: Red, Black']),'in_stock'=>1,'stock'=>18,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>9,'name'=>'Sample New Arrival 1','price'=>1450,'old_price'=>null,'image'=>'✨','badge'=>'New','category_id'=>7,'rating'=>4.4,'reviews_count'=>10,'description'=>'The latest addition to our collection.','variants'=>json_encode(['Size: One Size','Color: Clear, Amber']),'in_stock'=>1,'stock'=>22,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>10,'name'=>'Sample New Arrival 2','price'=>6200,'old_price'=>null,'image'=>'✨','badge'=>'New','category_id'=>8,'rating'=>4.1,'reviews_count'=>7,'description'=>'Fresh off the shelf.','variants'=>json_encode(['Size: 39-44','Color: White, Grey']),'in_stock'=>1,'stock'=>6,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>11,'name'=>'Sample New Arrival 3','price'=>3990,'old_price'=>null,'image'=>'✨','badge'=>'New','category_id'=>3,'rating'=>4.5,'reviews_count'=>14,'description'=>'Trendy and stylish.','variants'=>json_encode(['Size: S, M, L','Color: Black, White']),'in_stock'=>1,'stock'=>9,'low_stock_threshold'=>5,'status'=>'visible'],
+        ['id'=>12,'name'=>'Sample New Arrival 4','price'=>2300,'old_price'=>null,'image'=>'✨','badge'=>'New','category_id'=>4,'rating'=>4.2,'reviews_count'=>9,'description'=>'Just arrived!','variants'=>json_encode(['One Size','Color: Gold, Silver']),'in_stock'=>1,'stock'=>14,'low_stock_threshold'=>5,'status'=>'visible'],
     ];
-
-    $prodStmt = $pdo->prepare("INSERT INTO products (id, name, price, old_price, image, badge, category_id, rating, reviews_count, description, variants, in_stock, status) 
-                               VALUES (:id, :name, :price, :old_price, :image, :badge, :category_id, :rating, :reviews_count, :description, :variants, :in_stock, :status)");
+    $prodStmt = $pdo->prepare("INSERT INTO products (id, name, price, old_price, image, badge, category_id, rating, reviews_count, description, variants, in_stock, stock, low_stock_threshold, status) 
+                               VALUES (:id, :name, :price, :old_price, :image, :badge, :category_id, :rating, :reviews_count, :description, :variants, :in_stock, :stock, :low_stock_threshold, :status)");
     foreach ($products as $prod) {
         $prodStmt->execute($prod);
     }
     echo "Seeded products successfully.<br>";
 
-    // Seed default admin and user
-    $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-    $customerPassword = password_hash('customer123', PASSWORD_DEFAULT);
-
+    // Users (admin and customer with correct hashes for 'admin123' and 'customer123')
+    $adminHash = password_hash('admin123', PASSWORD_DEFAULT);
+    $customerHash = password_hash('customer123', PASSWORD_DEFAULT);
     $userStmt = $pdo->prepare("INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (:full_name, :email, :password_hash, :phone, :role)");
     $userStmt->execute([
         'full_name' => 'SASIDA Admin',
         'email' => 'admin@sasida.com',
-        'password_hash' => $adminPassword,
+        'password_hash' => $adminHash,
         'phone' => '+251911000000',
         'role' => 'admin'
     ]);
     $userStmt->execute([
         'full_name' => 'John Doe',
         'email' => 'customer@sasida.com',
-        'password_hash' => $customerPassword,
+        'password_hash' => $customerHash,
         'phone' => '+251911123456',
         'role' => 'customer'
     ]);

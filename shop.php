@@ -4,6 +4,8 @@
    Product catalog page
    ═══════════════════════════════════════════════ */
 
+$page_script = 'shop.js';  // Ensures shop.js is loaded
+
 require_once __DIR__ . '/includes/auth_helper.php';
 include __DIR__ . '/includes/header.php';
 ?>
@@ -32,14 +34,13 @@ include __DIR__ . '/includes/header.php';
       <div class="container">
         <div class="shop-toolbar-inner" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;">
           <div class="shop-filters" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-            <!-- Search Bar -->
+            <!-- Search Bar (optional) -->
             <input type="text" id="shopSearch" placeholder="Search products..." class="shop-filter" style="width:200px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:0.9rem;" />
             
             <select id="categoryFilter" class="shop-filter">
               <option value="all">All Categories</option>
             </select>
 
-            <!-- Price Filter -->
             <select id="priceFilter" class="shop-filter">
               <option value="all">All Prices</option>
               <option value="0-2000">Under 2,000 ETB</option>
@@ -76,3 +77,16 @@ include __DIR__ . '/includes/header.php';
   </main>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
+
+<!-- Debugging after footer, so data.php is already loaded -->
+<script>
+    (function() {
+        console.log('shop.php: productsData loaded?', typeof productsData);
+        if (typeof productsData !== 'undefined') {
+            console.log('Total products:', productsData.all ? productsData.all.length : 'undefined');
+            console.log('First 3 products:', productsData.all.slice(0, 3));
+        } else {
+            console.error('productsData is undefined – data.php not loaded');
+        }
+    })();
+</script>

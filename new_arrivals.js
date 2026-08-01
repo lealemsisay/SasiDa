@@ -141,7 +141,10 @@
   function renderProducts() {
     if (!productsGrid) return;
 
-    var newArrivals = productsData.newArrivals || [];
+    var newArrivals = (productsData && productsData.newArrivals && productsData.newArrivals.length > 0)
+      ? productsData.newArrivals 
+      : (productsData && productsData.all ? productsData.all.slice(0, 8) : []);
+
     if (countEl) countEl.textContent = newArrivals.length;
 
     if (newArrivals.length === 0) {
@@ -167,14 +170,20 @@
     newArrivals.forEach(function(p, index) {
       var bg = gradients[index % gradients.length];
       var isWishlisted = wishlist.indexOf(p.id) !== -1;
-      var categoryName = getCategoryName(p.categoryId);
+      var categoryName = p.categoryName || getCategoryName(p.categoryId);
       var oldPriceHtml = p.oldPrice ? '<span class="old-price">ETB ' + p.oldPrice.toFixed(2) + '</span>' : '';
       var ratingHtml = p.rating
         ? '<div class="product-rating">' + '★'.repeat(Math.round(p.rating)) + '<span>(' + (p.reviews || 0) + ')</span></div>'
         : '';
-      var imageHtml = p.image && p.image.startsWith('http')
-        ? '<img src="' + p.image + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;" />'
-        : '<span class="product-placeholder">' + (p.image || '✨') + '</span>';
+      
+      var imageHtml;
+      if (p.image && p.image.trim() !== '') {
+        var clean = p.image.replace(/^\/+/, '');
+        imageHtml = '<img src="' + clean + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';" />' +
+                    '<span class="product-placeholder" style="font-size:3.5rem;display:none;">✨</span>';
+      } else {
+        imageHtml = '<span class="product-placeholder" style="font-size:3.5rem;">✨</span>';
+      }
 
       html += '<div class="product-card reveal" data-product-id="' + p.id + '">' +
         '<div class="product-img-wrap" style="background:' + bg + ';">' +

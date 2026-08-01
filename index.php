@@ -5,6 +5,9 @@
    ═══════════════════════════════════════════════ */
 
 require_once __DIR__ . '/includes/auth_helper.php';
+
+$pageSettings = get_all_settings();
+
 include __DIR__ . '/includes/header.php';
 ?>
 
@@ -110,28 +113,46 @@ include __DIR__ . '/includes/header.php';
       </div>
     </section>
 
-    <!-- ====== ABOUT ====== -->
+    <!-- ====== DYNAMIC ABOUT SECTION ====== -->
     <section class="about section" id="about">
       <div class="container about-grid">
         <div class="about-visual reveal">
           <div class="about-img-main"></div>
           <div class="about-img-accent"></div>
           <div class="about-badge">
-            <span class="about-badge-num" id="aboutRating">4.9</span>
+            <span class="about-badge-num" id="aboutRating"><?php echo sanitize($pageSettings['about_rating'] ?? '4.9'); ?></span>
             <span class="about-badge-txt">★ Rating</span>
           </div>
         </div>
         <div class="about-content reveal">
-          <span class="section-tag" id="aboutTag">Our Story</span>
-          <h2 class="section-title" id="aboutTitle">Elevating Everyday<br /><em>Lifestyle</em></h2>
-          <p id="aboutDesc1">Founded in 2025, SASIDA was born from a passion for curating the finest products across beauty, fashion, and wellness. We believe that everyone deserves access to premium quality at fair prices.</p>
-          <p id="aboutDesc2">Our team travels the world to bring you the best – from artisan perfumes to sustainable fashion. Every product is handpicked to ensure it meets our high standards.</p>
-          <a href="#contact" class="btn btn-primary">Get In Touch</a>
+          <span class="section-tag" id="aboutTag"><?php echo sanitize($pageSettings['about_tag'] ?? 'Our Story'); ?></span>
+          <h2 class="section-title" id="aboutTitle"><?php echo sanitize($pageSettings['about_title'] ?? 'Elevating Everyday Lifestyle'); ?></h2>
+          
+          <p id="aboutDesc1"><?php echo sanitize($pageSettings['about_desc1'] ?? ''); ?></p>
+          <p id="aboutDesc2"><?php echo sanitize($pageSettings['about_desc2'] ?? ''); ?></p>
+
+          <?php if (!empty($pageSettings['about_mission'])): ?>
+            <div style="margin-top:16px;padding:12px 16px;background:var(--surface);border-left:3px solid var(--gold);border-radius:4px;">
+              <strong style="display:block;color:var(--gold);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Our Mission</strong>
+              <p id="aboutMission" style="margin:0;font-size:0.9rem;color:var(--text-muted);"><?php echo sanitize($pageSettings['about_mission']); ?></p>
+            </div>
+          <?php endif; ?>
+
+          <?php if (!empty($pageSettings['about_vision'])): ?>
+            <div style="margin-top:12px;padding:12px 16px;background:var(--surface);border-left:3px solid var(--gold);border-radius:4px;">
+              <strong style="display:block;color:var(--gold);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Our Vision</strong>
+              <p id="aboutVision" style="margin:0;font-size:0.9rem;color:var(--text-muted);"><?php echo sanitize($pageSettings['about_vision']); ?></p>
+            </div>
+          <?php endif; ?>
+
+          <div style="margin-top:24px;">
+            <a href="#contact" class="btn btn-primary">Get In Touch</a>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ====== CONTACT / NEWSLETTER ====== -->
+    <!-- ====== DYNAMIC CONTACT SECTION ====== -->
     <section class="newsletter section" id="contact">
       <div class="container newsletter-wrap glass">
         <div class="newsletter-content">
@@ -141,35 +162,35 @@ include __DIR__ . '/includes/header.php';
           <div class="contact-info-grid">
             <div>
               <strong>Phone</strong>
-              <span id="contactPhone" data-contact="phone">+251 911 234 567</span>
+              <span id="contactPhone" data-contact="phone"><?php echo sanitize($pageSettings['contact_phone'] ?? ''); ?></span>
             </div>
             <div>
               <strong>Email</strong>
-              <span id="contactEmail" data-contact="email">info@sasida.com</span>
+              <span id="contactEmail" data-contact="email"><?php echo sanitize($pageSettings['contact_email'] ?? ''); ?></span>
             </div>
             <div>
               <strong>WhatsApp</strong>
-              <span id="contactWhatsApp" data-contact="whatsapp">+251 911 234 567</span>
+              <span id="contactWhatsApp" data-contact="whatsapp"><?php echo sanitize($pageSettings['contact_whatsapp'] ?? ''); ?></span>
             </div>
             <div>
               <strong>Instagram</strong>
-              <a href="#" id="contactInstagram" data-contact="instagram">@sasida_shop</a>
+              <a href="<?php echo sanitize($pageSettings['contact_instagram_url'] ?: '#'); ?>" id="contactInstagram" data-contact="instagram" target="_blank" rel="noopener"><?php echo sanitize($pageSettings['contact_instagram'] ?? '@sasida_shop'); ?></a>
             </div>
             <div>
               <strong>TikTok</strong>
-              <a href="#" id="contactTikTok" data-contact="tiktok">@sasida_shop</a>
+              <a href="<?php echo sanitize($pageSettings['contact_tiktok_url'] ?: '#'); ?>" id="contactTikTok" data-contact="tiktok" target="_blank" rel="noopener"><?php echo sanitize($pageSettings['contact_tiktok'] ?? '@sasida_shop'); ?></a>
             </div>
             <div>
               <strong>Address</strong>
-              <span id="contactAddress" data-contact="address">Addis Ababa, Ethiopia</span>
+              <span id="contactAddress" data-contact="address"><?php echo sanitize($pageSettings['contact_address'] ?? ''); ?></span>
             </div>
             <div class="grid-full">
               <strong>Business Hours</strong>
-              <span id="contactHours" data-contact="hours">Mon–Sat 9am – 9pm</span>
+              <span id="contactHours" data-contact="hours"><?php echo sanitize($pageSettings['business_hours'] ?? ''); ?></span>
             </div>
           </div>
 
-          <p>Subscribe to receive exclusive offers, new arrivals, and style inspiration.</p>
+          <p style="margin-top:24px;">Subscribe to receive exclusive offers, new arrivals, and style inspiration.</p>
           <form class="newsletter-form" id="newsletterForm" novalidate>
             <input type="email" id="nlEmail" placeholder="your@email.com" required />
             <button type="submit" class="btn btn-primary">Subscribe</button>

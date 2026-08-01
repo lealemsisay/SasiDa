@@ -2,6 +2,37 @@
 (function() {
     'use strict';
 
+    // ─── THEME TOGGLE ───────────────────────────
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            // Update icon visibility
+            const lightIcon = themeToggle.querySelector('.theme-icon.light');
+            const darkIcon = themeToggle.querySelector('.theme-icon.dark');
+            
+            if (theme === 'light') {
+                if (lightIcon) lightIcon.style.display = 'flex';
+                if (darkIcon) darkIcon.style.display = 'none';
+            } else {
+                if (lightIcon) lightIcon.style.display = 'none';
+                if (darkIcon) darkIcon.style.display = 'flex';
+            }
+        }
+
+        // Apply stored theme or default to light
+        const storedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(storedTheme);
+
+        themeToggle.addEventListener('click', function() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            applyTheme(next);
+        });
+    }
+
     // ─── Sidebar Toggle ──────────────────────────
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.querySelector('.admin-sidebar');

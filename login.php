@@ -31,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter a valid email address.';
     } else {
         try {
+            // Ensure database connection exists
+            if (!isset($pdo)) {
+                require_once __DIR__ . '/config/db.php';
+            }
+            
             // Check if user exists
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
@@ -40,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Account not found. Please register first.';
             } else {
                 // Verify password hash
-                if (password_verify($password, $db_user['password_hash'])) {
+                $password_valid = password_verify($password, $db_user['password_hash']);
+                
+                if ($password_valid) {
                     // Populate Session variables securely
                     $_SESSION['user_id'] = $db_user['id'];
                     $_SESSION['user_name'] = $db_user['full_name'];
@@ -55,10 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Redirect based on role
                     if ($db_user['role'] === 'admin') {
                         header("Location: admin/index.php");
+                        exit;
                     } else {
-                        header("Location: " . get_safe_return_url('dashboard.php'));
+                        $safe_url = get_safe_return_url('dashboard.php');
+                        header("Location: " . $safe_url);
+                        exit;
                     }
-                    exit;
                 } else {
                     $error = 'Incorrect password. Please try again.';
                 }
@@ -124,8 +133,19 @@ include __DIR__ . '/includes/header.php';
           <!-- Register link -->
           <div class="divider" style="margin-top:24px;text-align:center;font-size:0.9rem;color:var(--text-muted);">
             <p>Don't have an account? <a href="register.php" style="color:var(--gold);text-decoration:none;font-weight:500;">Sign Up</a></p>
-            <p style="margin-top:12px;font-size:0.8rem;color:var(--text-muted);">Demo customer: customer@sasida.com / customer123</p>
-            <p style="margin-top:4px;font-size:0.8rem;color:var(--text-muted);">Demo admin: admin@sasida.com / admin123</p>
+            
+            <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);">
+            
+            <p style="margin-top:12px;font-size:0.85rem;color:var(--gold);font-weight:500;">📋 DEMO CREDENTIALS</p>
+            <div style="background:var(--surface-glass);padding:12px;border-radius:8px;margin-top:8px;border:1px solid var(--border);">
+              <p style="margin:4px 0;"><strong>Admin:</strong></p>
+              <p style="margin:4px 0;font-family:monospace;font-size:0.8rem;color:var(--gold);">admin@sasida.com</p>
+              <p style="margin:4px 0;font-family:monospace;font-size:0.8rem;color:var(--gold);">admin123</p>
+              
+              <p style="margin:12px 0 4px;"><strong>Customer:</strong></p>
+              <p style="margin:4px 0;font-family:monospace;font-size:0.8rem;color:var(--gold);">customer@sasida.com</p>
+              <p style="margin:4px 0;font-family:monospace;font-size:0.8rem;color:var(--gold);">customer123</p>
+            </div>
           </div>
         </div>
       </div>

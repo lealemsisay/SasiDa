@@ -20,26 +20,14 @@ if (!defined('BASE_URL')) {
         <a href="categories.php" class="<?php echo $current_page === 'categories' ? 'active' : ''; ?>">
             <span class="nav-icon">📂</span> Categories
         </a>
-        <a href="brands.php" class="<?php echo $current_page === 'brands' ? 'active' : ''; ?>">
-            <span class="nav-icon">🏷️</span> Brands
-        </a>
-        <a href="inventory.php" class="<?php echo $current_page === 'inventory' ? 'active' : ''; ?>">
-            <span class="nav-icon">📊</span> Inventory
-        </a>
         <a href="orders.php" class="<?php echo $current_page === 'orders' ? 'active' : ''; ?>">
             <span class="nav-icon">🛒</span> Orders
         </a>
         <a href="customers.php" class="<?php echo $current_page === 'customers' ? 'active' : ''; ?>">
-            <span class="nav-icon">👤</span> Customers
-        </a>
-        <a href="reviews.php" class="<?php echo $current_page === 'reviews' ? 'active' : ''; ?>">
-            <span class="nav-icon">⭐</span> Reviews
+            <span class="nav-icon">👥</span> Customers
         </a>
         <a href="reports.php" class="<?php echo $current_page === 'reports' ? 'active' : ''; ?>">
             <span class="nav-icon">📈</span> Reports
-        </a>
-        <a href="content.php" class="<?php echo $current_page === 'content' ? 'active' : ''; ?>">
-            <span class="nav-icon">📝</span> Content
         </a>
         <a href="settings.php" class="<?php echo $current_page === 'settings' ? 'active' : ''; ?>">
             <span class="nav-icon">⚙️</span> Store Settings

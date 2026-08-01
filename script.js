@@ -1,38 +1,28 @@
 /* ═══════════════════════════════════════════════
    SASIDA — script.js
-   Core UI + Data-driven homepage (reads from localStorage)
-═══════════════════════════════════════════════ */
+   Landing page & global UI interactions + Live DB Sync
+   ═══════════════════════════════════════════════ */
 
 (function() {
   'use strict';
 
-  // ─── DOM refs ──────────────────────────────────
-  var loader = document.getElementById('loader');
-  var scrollTopBtn = document.getElementById('scrollTop');
-  var header = document.getElementById('header');
-  var themeToggle = document.getElementById('themeToggle');
-  var hamburger = document.getElementById('hamburger');
-  var mobileMenu = document.getElementById('mobileMenu');
-  var logoWrapper = document.getElementById('logoWrapper');
-  var navList = document.getElementById('navLinks');
+  // ─── DOM REFS ──────────────────────────────────
+  const loader = document.getElementById('loader');
+  const scrollTopBtn = document.getElementById('scrollTop');
+  const header = document.getElementById('header');
+  const themeToggle = document.getElementById('themeToggle');
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const logoWrapper = document.getElementById('logoWrapper');
+  const cartCount = document.getElementById('cartCount');
 
   // ─── LOADER ────────────────────────────────────
   function hideLoader() {
     if (loader) loader.classList.add('hidden');
   }
-
-  window.addEventListener('load', function() {
-    setTimeout(hideLoader, 800);
-    setTimeout(hideLoader, 100);
-    setTimeout(function() {
-      initNavigation();
-      initScrollSpy();
-      setActiveNavFromHash();
-      renderAll();
-      updateHeader();
-    }, 150);
-  });
-  setTimeout(hideLoader, 2000);
+  hideLoader();
+  setTimeout(hideLoader, 500);
+  setTimeout(hideLoader, 1000);
 
   // ─── THEME ─────────────────────────────────────
   function applyTheme(theme) {
@@ -40,15 +30,13 @@
     localStorage.setItem('theme', theme);
   }
 
-  var storedTheme = localStorage.getItem('theme');
-  if (storedTheme) applyTheme(storedTheme);
-  else applyTheme('dark');
+  const storedTheme = localStorage.getItem('theme');
+  applyTheme(storedTheme || 'dark');
 
   if (themeToggle) {
     themeToggle.addEventListener('click', function() {
-      var current = document.documentElement.getAttribute('data-theme');
-      var next = current === 'light' ? 'dark' : 'light';
-      applyTheme(next);
+      const current = document.documentElement.getAttribute('data-theme');
+      applyTheme(current === 'light' ? 'dark' : 'light');
     });
   }
 
@@ -67,11 +55,15 @@
     });
   });
 
-  // ─── SCROLL-TO-TOP ────────────────────────────
+  // ─── SCROLL & HEADER ──────────────────────────
   window.addEventListener('scroll', function() {
     if (scrollTopBtn) {
       if (window.scrollY > 300) scrollTopBtn.classList.add('show');
       else scrollTopBtn.classList.remove('show');
+    }
+    if (header) {
+      if (window.scrollY > 40) header.classList.add('scrolled');
+      else header.classList.remove('scrolled');
     }
   });
 
@@ -80,26 +72,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
-
-  // ─── HEADER SHADOW ─────────────────────────────
-  window.addEventListener('scroll', function() {
-    if (header) {
-      if (window.scrollY > 40) header.classList.add('scrolled');
-      else header.classList.remove('scrolled');
-    }
-  });
-
-  // ─── SCROLL REVEAL ────────────────────────────
-  var revealElements = document.querySelectorAll('.reveal');
-  var revealObserver = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-  revealElements.forEach(function(el) { revealObserver.observe(el); });
 
   // ─── LOGO EXPAND ──────────────────────────────
   if (logoWrapper) {
@@ -114,379 +86,261 @@
     });
   }
 
-  // ─── GET DATA FROM LOCALSTORAGE ────────────────
-  function getCategories() {
-    return JSON.parse(localStorage.getItem('sasida_categories') || '[]');
+  // ─── CART ──────────────────────────────────────
+  const CART_STORAGE_KEY = 'sasida_cart';
+
+  function getCart() {
+    try { return JSON.parse(localStorage.getItem(CART_STORAGE_KEY)) || []; } catch { return []; }
   }
 
-  function getProducts() {
-    return JSON.parse(localStorage.getItem('sasida_products') || '[]');
+  function saveCart(cart) {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    updateCartBadge();
   }
 
-  function getContent() {
-    return JSON.parse(localStorage.getItem('sasida_content') || '{}');
+  function updateCartBadge() {
+    const cart = getCart();
+    const count = cart.reduce(function(sum, item) { return sum + (item.quantity || 0); }, 0);
+    if (cartCount) {
+      cartCount.textContent = count;
+    }
   }
 
-  function getHero() {
-    var content = getContent();
-    return content.hero || {
-      eyebrow: 'Since 2025 · Premium Lifestyle',
-      title: 'Discover Your<br /><em>Signature Style</em>',
-      subtitle: 'From cosmetics to fashion, find everything you need<br />to elevate your everyday.',
-      primaryCta: 'Shop Now',
-      primaryLink: 'shop.php',
-      secondaryCta: 'Explore Categories',
-      secondaryLink: 'shop.php'
-    };
+  function addToCart(productId, quantity, variant) {
+    if (!window.SASIDA || !window.SASIDA.auth || !window.SASIDA.auth.isLoggedIn()) {
+      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = 'login.php?return=' + returnUrl;
+      return false;
+    }
+
+    let cart = getCart();
+    const existing = cart.find(function(item) { return item.id === productId && item.variant === variant; });
+    const product = (typeof productsData !== 'undefined' && productsData.all) 
+      ? productsData.all.find(p => p.id === productId) 
+      : null;
+
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      cart.push({
+        id: productId,
+        name: product ? product.name : 'Product #' + productId,
+        price: product ? product.price : 0,
+        image: product ? product.image : '',
+        quantity: quantity,
+        variant: variant || 'Default',
+        maxQuantity: 99
+      });
+    }
+    saveCart(cart);
+    return true;
   }
 
-  function getAbout() {
-    var content = getContent();
-    return content.about || {
-      tag: 'Our Story',
-      title: 'Elevating Everyday<br /><em>Lifestyle</em>',
-      desc1: 'Founded in 2025, SASIDA was born from a passion for curating the finest products across beauty, fashion, and wellness. We believe that everyone deserves access to premium quality at fair prices.',
-      desc2: 'Our team travels the world to bring you the best – from artisan perfumes to sustainable fashion. Every product is handpicked to ensure it meets our high standards.',
-      rating: '4.9'
-    };
+  // ─── DYNAMIC RENDERING FOR LANDING PAGE ────────
+  function renderImageHtml(image, name) {
+    if (image && image.trim() !== '') {
+      var clean = image.replace(/^\/+/, '');
+      return '<img src="' + clean + '" alt="' + (name || 'Product') + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';" />' +
+             '<span class="product-placeholder" style="font-size:3.5rem;display:none;">📦</span>';
+    }
+    return '<span class="product-placeholder" style="font-size:3.5rem;">📦</span>';
   }
 
-  function getContact() {
-    var content = getContent();
-    return content.contact || {
-      phone: '+251 911 234 567',
-      email: 'info@sasida.com',
-      whatsapp: '+251 911 234 567',
-      instagram: 'https://instagram.com/sasida_shop',
-      instagramText: '@sasida_shop',
-      tiktok: 'https://tiktok.com/@sasida_shop',
-      tiktokText: '@sasida_shop',
-      address: 'Addis Ababa, Ethiopia',
-      hours: 'Mon–Sat 9am – 9pm'
-    };
-  }
-
-  function getPromotions() {
-    var content = getContent();
-    return content.promotions || [
-      { id: 1, title: 'Summer Sale', subtitle: 'Up to 40% off selected items', cta: 'Shop Sale', link: 'shop.php', bg: 'linear-gradient(135deg, #1a1a2e, #16213e)' },
-      { id: 2, title: 'New Arrivals', subtitle: 'Fresh styles just landed', cta: 'Explore', link: 'shop.php', bg: 'linear-gradient(135deg, #2d1b1b, #3d2b2b)' }
-    ];
-  }
-
-  function getTestimonials() {
-    var content = getContent();
-    return content.testimonials || [
-      { id: 1, name: 'Amara Chen', initials: 'AC', avatar: 'av1', rating: 5, text: 'SASIDA offers the best selection of premium products. I love the quality and the fast delivery.', location: 'New York, USA' },
-      { id: 2, name: 'Lena Kovacs', initials: 'LK', avatar: 'av2', rating: 5, text: 'The cosmetics range is incredible – my skin has never looked better. Highly recommend!', location: 'Budapest, Hungary' },
-      { id: 3, name: 'David Okafor', initials: 'DO', avatar: 'av3', rating: 5, text: 'Great customer service and amazing value for money. I keep coming back for more.', location: 'Lagos, Nigeria' }
-    ];
-  }
-
-  // ─── RENDER FUNCTIONS ──────────────────────────
-
-  function renderHero() {
-    var hero = getHero();
-    var el = document.querySelector('.hero');
-    if (!el) return;
-    var eyebrow = el.querySelector('.hero-eyebrow');
-    var title = el.querySelector('.hero-heading');
-    var sub = el.querySelector('.hero-sub');
-    var primary = el.querySelector('.btn-primary');
-    var secondary = el.querySelector('.btn-ghost');
-    if (eyebrow) eyebrow.textContent = hero.eyebrow;
-    if (title) title.innerHTML = hero.title;
-    if (sub) sub.innerHTML = hero.subtitle;
-    if (primary) { primary.textContent = hero.primaryCta; primary.href = hero.primaryLink; }
-    if (secondary) { secondary.textContent = hero.secondaryCta; secondary.href = hero.secondaryLink; }
-  }
-
-  function renderCategories() {
-    var grid = document.querySelector('.categories-grid');
-    if (!grid) return;
-    var categories = getCategories();
-    var visible = categories.filter(function(c) { return c.visible !== false; });
-    var html = '';
-    visible.forEach(function(cat) {
-      html += '<div class="category-card reveal" style="background:' + cat.color + ';">' +
-        '<div class="category-icon">' + cat.icon + '</div>' +
-        '<h4>' + cat.name + '</h4>' +
-        '</div>';
-    });
-    grid.innerHTML = html;
-  }
-
-  function renderProducts(containerSelector, productList) {
-    var container = document.querySelector(containerSelector);
-    if (!container) return;
-    var gradients = [
+  function renderProductCard(p, index) {
+    const gradients = [
       'linear-gradient(135deg,#f5d6c6,#f0b8a0)',
       'linear-gradient(135deg,#c9d4d1,#a3b8b3)',
       'linear-gradient(135deg,#d4c9b0,#b8a88c)',
       'linear-gradient(135deg,#d5c9d4,#b8a8b0)',
       'linear-gradient(135deg,#e8d5c4,#d4b8a4)',
-      'linear-gradient(135deg,#b5c9d6,#8fb0c4)',
-      'linear-gradient(135deg,#c9d4b8,#b0c0a0)',
-      'linear-gradient(135deg,#d4c8d4,#b8a8b8)'
+      'linear-gradient(135deg,#b5c9d6,#8fb0c4)'
     ];
-    var html = '';
-    var visibleProducts = productList.filter(function(p) { return p.status !== 'hidden' && p.status !== 'archived'; });
-    visibleProducts.forEach(function(p, index) {
-      var bg = gradients[index % gradients.length];
-      var oldPriceHtml = p.oldPrice ? '<span class="old-price">ETB ' + p.oldPrice.toFixed(2) + '</span>' : '';
-      var badgeHtml = p.badge ? '<span class="product-badge">' + p.badge + '</span>' : '';
-      var imageHtml = p.image && p.image.startsWith('http')
-        ? '<img src="' + p.image + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;" />'
-        : '<span class="product-placeholder" style="font-size:3.5rem;">' + (p.image || '📦') + '</span>';
-      var stockBadge = (p.status === 'outofstock' || p.inStock === false)
-        ? '<span class="product-badge" style="background:#e05757;color:#fff;">Out of Stock</span>'
-        : '';
-      html += '<div class="product-card reveal">' +
-        '<div class="product-img-wrap" style="background:' + bg + ';">' +
-        imageHtml +
-        badgeHtml +
-        stockBadge +
-        '</div>' +
-        '<div class="product-body">' +
-        '<h4>' + p.name + '</h4>' +
-        '<div class="product-price">' + oldPriceHtml + ' ETB ' + p.price.toFixed(2) + '</div>' +
-        '</div>' +
-        '</div>';
-    });
-    container.innerHTML = html;
+    var bg = gradients[index % gradients.length];
+    var oldPriceHtml = p.oldPrice ? '<span class="old-price" style="text-decoration:line-through;color:var(--text-muted);font-size:0.85rem;margin-right:6px;">ETB ' + p.oldPrice.toFixed(2) + '</span>' : '';
+    var badgeHtml = p.badge ? '<span class="product-badge">' + p.badge + '</span>' : '';
+    var ratingHtml = p.rating ? '<div style="font-size:0.8rem;color:var(--gold);margin-bottom:6px;">' + '★'.repeat(Math.round(p.rating)) + ' (' + (p.reviews || 0) + ')</div>' : '';
+
+    var stockBadge = '';
+    var buttonHtml = '<button class="btn btn-outline btn-sm add-to-cart-btn" data-product-id="' + p.id + '" style="width:100%;">Add to Cart</button>';
+    
+    if (p.status === 'outofstock' || !p.inStock) {
+      stockBadge = '<span style="display:inline-block;padding:2px 8px;background:#e74c3c;color:#fff;font-size:0.75rem;border-radius:4px;margin-bottom:6px;font-weight:600;">Out of Stock</span>';
+      buttonHtml = '<button class="btn btn-outline btn-sm" disabled style="width:100%;opacity:0.6;cursor:not-allowed;">Out of Stock</button>';
+    }
+
+    return '<div class="product-card reveal" data-product-id="' + p.id + '">' +
+      '<a href="product.php?id=' + p.id + '" class="product-link">' +
+      '<div class="product-img-wrap" style="background:' + bg + ';">' +
+      renderImageHtml(p.image, p.name) +
+      badgeHtml +
+      '</div>' +
+      '<div class="product-body">' +
+      '<div class="product-body-top">' +
+      '<div class="product-category">' + (p.categoryName || 'General') + '</div>' +
+      '<h4>' + p.name + '</h4>' +
+      ratingHtml +
+      stockBadge +
+      '</div>' +
+      '<div class="product-body-bottom">' +
+      '<div class="product-price">' + oldPriceHtml + ' ETB ' + p.price.toFixed(2) + '</div>' +
+      buttonHtml +
+      '</div>' +
+      '</div>' +
+      '</a>' +
+      '</div>';
   }
 
-  function renderPromotions() {
-    var container = document.querySelector('.promotions-grid');
+  function bindCartButtons(container) {
     if (!container) return;
-    var promotions = getPromotions();
-    var html = '';
-    promotions.forEach(function(promo) {
-      html += '<div class="promo-card reveal" style="background:' + promo.bg + ';">' +
-        '<div class="promo-content">' +
-        '<span class="promo-tag">' + promo.title + '</span>' +
-        '<p>' + promo.subtitle + '</p>' +
-        '<a href="' + promo.link + '" class="btn btn-primary">' + promo.cta + '</a>' +
-        '</div>' +
-        '</div>';
-    });
-    container.innerHTML = html;
-  }
-
-  function renderTestimonials() {
-    var container = document.getElementById('testimonialTrack');
-    if (!container) return;
-    var testimonials = getTestimonials();
-    var html = '';
-    testimonials.forEach(function(t) {
-      var stars = '★'.repeat(t.rating) + '☆'.repeat(5 - t.rating);
-      html += '<div class="testimonial-card reveal">' +
-        '<div class="stars">' + stars + '</div>' +
-        '<p>"' + t.text + '"</p>' +
-        '<div class="testimonial-author">' +
-        '<div class="author-avatar ' + t.avatar + '">' + t.initials + '</div>' +
-        '<div>' +
-        '<strong>' + t.name + '</strong>' +
-        '<span>' + t.location + '</span>' +
-        '</div>' +
-        '</div>' +
-        '</div>';
-    });
-    container.innerHTML = html;
-  }
-
-  function renderContact() {
-    var contact = getContact();
-    var textElements = ['contactPhone', 'contactEmail', 'contactWhatsApp', 'contactAddress', 'contactHours'];
-    textElements.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) {
-        var key = el.dataset.contact;
-        if (key && contact[key] !== undefined) {
-          el.textContent = contact[key];
-        }
-      }
-    });
-    var instagramLink = document.getElementById('contactInstagram');
-    if (instagramLink) {
-      instagramLink.href = contact.instagram;
-      instagramLink.textContent = contact.instagramText;
-    }
-    var tiktokLink = document.getElementById('contactTikTok');
-    if (tiktokLink) {
-      tiktokLink.href = contact.tiktok;
-      tiktokLink.textContent = contact.tiktokText;
-    }
-  }
-
-  function renderAbout() {
-    var about = getAbout();
-    var el = function(id) { return document.getElementById(id); };
-    if (el('aboutTag')) el('aboutTag').textContent = about.tag;
-    if (el('aboutTitle')) el('aboutTitle').innerHTML = about.title;
-    if (el('aboutDesc1')) el('aboutDesc1').textContent = about.desc1;
-    if (el('aboutDesc2')) el('aboutDesc2').textContent = about.desc2;
-    if (el('aboutRating')) el('aboutRating').textContent = about.rating;
-  }
-
-  function renderAll() {
-    renderHero();
-    renderCategories();
-    var products = getProducts();
-    var featured = products.slice(0, 4);
-    var bestsellers = products.filter(function(p) { return p.badge === 'Best Seller'; });
-    var newArrivals = products.filter(function(p) { return p.badge === 'New'; });
-    renderProducts('#featuredProducts', featured);
-    renderProducts('#bestsellerProducts', bestsellers);
-    renderProducts('#newArrivalProducts', newArrivals);
-    renderPromotions();
-    renderTestimonials();
-    renderContact();
-    renderAbout();
-  }
-
-  function updateHeader() {
-    if (window.SASIDA && window.SASIDA.auth && window.SASIDA.auth.updateHeader) {
-      window.SASIDA.auth.updateHeader();
-    }
-  }
-
-  // ─── NAVIGATION SYSTEM ──────────────────────────
-
-  var underline = document.querySelector('.nav-underline');
-  if (!underline) {
-    underline = document.createElement('span');
-    underline.className = 'nav-underline';
-    navList.appendChild(underline);
-  }
-
-  var currentActiveId = null;
-  var isScrolling = false;
-  var scrollTimeout = null;
-
-  function getNavbarHeight() {
-    return header.getBoundingClientRect().height;
-  }
-
-  function updateUnderline(link) {
-    if (!link) return;
-    var rect = link.getBoundingClientRect();
-    var navRect = navList.getBoundingClientRect();
-    var left = rect.left - navRect.left;
-    var width = rect.width;
-    underline.style.transform = 'translateX(' + left + 'px)';
-    underline.style.width = width + 'px';
-    underline.style.opacity = '1';
-  }
-
-  function setActiveLink(link) {
-    if (!link) return;
-    var page = link.dataset.page || link.getAttribute('href')?.replace('#', '')?.replace('.html', '')?.replace('.php', '');
-    if (!page) return;
-    if (currentActiveId === page) return;
-
-    document.querySelectorAll('.nav-link, .mob-link').forEach(function(l) { l.classList.remove('active'); });
-    document.querySelectorAll('.nav-link[data-page="' + page + '"], .mob-link[data-page="' + page + '"]').forEach(function(l) { l.classList.add('active'); });
-    document.querySelectorAll('.nav-link[href*="' + page + '"], .mob-link[href*="' + page + '"]').forEach(function(l) { l.classList.add('active'); });
-
-    var desktopLink = document.querySelector('.nav-link[data-page="' + page + '"]') || document.querySelector('.nav-link[href*="' + page + '"]');
-    if (desktopLink) updateUnderline(desktopLink);
-
-    currentActiveId = page;
-  }
-
-  function scrollToSection(sectionId) {
-    var section = document.getElementById(sectionId);
-    if (!section) return;
-    var navbarHeight = getNavbarHeight();
-    var extraOffset = 16;
-    var targetPosition = section.getBoundingClientRect().top + window.pageYOffset - navbarHeight - extraOffset;
-    window.scrollTo({
-      top: targetPosition,
-      behavior: 'smooth'
-    });
-  }
-
-  function initScrollSpy() {
-    var thresholds = [0, 0.25, 0.5, 0.75, 1];
-    var rootMargin = '-' + getNavbarHeight() + 'px 0px -20% 0px';
-    var observer = new IntersectionObserver(function(entries) {
-      var bestEntry = null;
-      var bestRatio = 0;
-      for (var i = 0; i < entries.length; i++) {
-        if (entries[i].isIntersecting && entries[i].intersectionRatio > bestRatio) {
-          bestRatio = entries[i].intersectionRatio;
-          bestEntry = entries[i];
-        }
-      }
-      if (bestEntry) {
-        var sectionId = bestEntry.target.id;
-        if (sectionId !== currentActiveId && !isScrolling) {
-          var link = document.querySelector('.nav-link[data-page="' + sectionId + '"]') ||
-                       document.querySelector('.nav-link[href="#' + sectionId + '"]');
-          if (link) setActiveLink(link);
-        }
-      }
-    }, { threshold: thresholds, rootMargin: rootMargin });
-
-    var sectionIds = ['home', 'shop', 'categories', 'newarrivals', 'about', 'contact'];
-    sectionIds.forEach(function(id) {
-      var section = document.getElementById(id);
-      if (section) observer.observe(section);
-    });
-  }
-
-  function initNavigation() {
-    document.querySelectorAll('.nav-link, .mob-link').forEach(function(link) {
-      link.addEventListener('click', function(e) {
-        var href = this.getAttribute('href');
-        if (href && href.startsWith('#')) {
-          e.preventDefault();
-          var sectionId = href.replace('#', '');
-          if (['home','shop','categories','newarrivals','about','contact'].indexOf(sectionId) !== -1) {
-            setActiveLink(this);
-            isScrolling = true;
-            clearTimeout(scrollTimeout);
-            scrollToSection(sectionId);
-            if (history.pushState) history.pushState(null, null, href);
-            scrollTimeout = setTimeout(function() { isScrolling = false; }, 600);
-          }
+    container.querySelectorAll('.add-to-cart-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var productId = parseInt(this.dataset.productId);
+        var success = addToCart(productId, 1, 'Default');
+        if (success) {
+          var originalText = this.textContent;
+          this.textContent = '✓ Added!';
+          this.style.background = '#52c48b';
+          this.style.color = '#fff';
+          setTimeout(function() {
+            btn.textContent = originalText;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 1500);
         }
       });
     });
-
-    window.addEventListener('hashchange', setActiveNavFromHash);
-
-    var resizeTimer;
-    window.addEventListener('resize', function() {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(function() {
-        var activeLink = document.querySelector('.nav-link.active');
-        if (activeLink) updateUnderline(activeLink);
-      }, 200);
-    });
-
-    document.fonts?.ready?.then(function() {
-      var activeLink = document.querySelector('.nav-link.active');
-      if (activeLink) updateUnderline(activeLink);
-    });
   }
 
-  function setActiveNavFromHash() {
-    var hash = window.location.hash || '#home';
-    var sectionId = hash.replace('#', '');
-    var link = document.querySelector('.nav-link[data-page="' + sectionId + '"]') ||
-                 document.querySelector('.nav-link[href="#' + sectionId + '"]');
-    if (link) setActiveLink(link);
-    else {
-      var homeLink = document.querySelector('.nav-link[data-page="home"]');
-      if (homeLink) setActiveLink(homeLink);
+  function renderLandingPageData() {
+    if (typeof productsData === 'undefined' || !productsData.all) return;
+
+    // 1. Featured Products (first 4 visible products)
+    var featuredContainer = document.getElementById('featuredProducts');
+    if (featuredContainer) {
+      var featuredList = productsData.all.slice(0, 4);
+      if (featuredList.length === 0) {
+        featuredContainer.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">No featured products available.</p>';
+      } else {
+        featuredContainer.innerHTML = featuredList.map((p, idx) => renderProductCard(p, idx)).join('');
+        bindCartButtons(featuredContainer);
+      }
     }
+
+    // 2. Best Sellers
+    var bestsellerContainer = document.getElementById('bestsellerProducts');
+    if (bestsellerContainer) {
+      var bestsellersList = productsData.all.filter(p => p.badge === 'Best Seller');
+      if (bestsellersList.length === 0) bestsellersList = productsData.all.slice(0, 4);
+      bestsellerContainer.innerHTML = bestsellersList.map((p, idx) => renderProductCard(p, idx)).join('');
+      bindCartButtons(bestsellerContainer);
+    }
+
+    // 3. New Arrivals
+    var newArrivalContainer = document.getElementById('newArrivalProducts');
+    if (newArrivalContainer) {
+      var newArrivalsList = productsData.all.filter(p => p.badge === 'New' || p.badge === 'New Arrival');
+      if (newArrivalsList.length === 0) newArrivalsList = productsData.all.slice(0, 4);
+      newArrivalContainer.innerHTML = newArrivalsList.map((p, idx) => renderProductCard(p, idx)).join('');
+      bindCartButtons(newArrivalContainer);
+    }
+
+    // 4. Categories Grid
+    var categoriesGrid = document.querySelector('.categories-grid');
+    if (categoriesGrid && typeof categoriesData !== 'undefined' && categoriesData.length > 0) {
+      categoriesGrid.innerHTML = categoriesData.map(function(cat) {
+        return '<a href="shop.php?category=' + cat.id + '" class="category-card reveal" style="text-decoration:none;">' +
+          '<div class="category-icon-wrap" style="background:' + (cat.color || '#d4d9d1') + ';">' +
+          '<span class="category-icon">' + (cat.icon || '📦') + '</span>' +
+          '</div>' +
+          '<h3>' + cat.name + '</h3>' +
+          '<p class="category-count">' + (cat.productCount || 0) + ' Products</p>' +
+          '</a>';
+      }).join('');
+    }
+
+    // 5. Hydrate About and Contact from database settings
+    if (typeof aboutData !== 'undefined') {
+      var tagEl = document.getElementById('aboutTag'); if (tagEl && aboutData.tag) tagEl.textContent = aboutData.tag;
+      var titleEl = document.getElementById('aboutTitle'); if (titleEl && aboutData.title) titleEl.textContent = aboutData.title;
+      var d1El = document.getElementById('aboutDesc1'); if (d1El && aboutData.desc1) d1El.textContent = aboutData.desc1;
+      var d2El = document.getElementById('aboutDesc2'); if (d2El && aboutData.desc2) d2El.textContent = aboutData.desc2;
+      var rEl = document.getElementById('aboutRating'); if (rEl && aboutData.rating) rEl.textContent = aboutData.rating;
+    }
+
+    if (typeof contactData !== 'undefined') {
+      var phoneEl = document.getElementById('contactPhone'); if (phoneEl && contactData.phone) phoneEl.textContent = contactData.phone;
+      var emailEl = document.getElementById('contactEmail'); if (emailEl && contactData.email) emailEl.textContent = contactData.email;
+      var waEl = document.getElementById('contactWhatsApp'); if (waEl && contactData.whatsapp) waEl.textContent = contactData.whatsapp;
+      var instaEl = document.getElementById('contactInstagram'); 
+      if (instaEl) { 
+        if (contactData.instagramText) instaEl.textContent = contactData.instagramText;
+        if (contactData.instagram) instaEl.href = contactData.instagram;
+      }
+      var ttEl = document.getElementById('contactTikTok');
+      if (ttEl) {
+        if (contactData.tiktokText) ttEl.textContent = contactData.tiktokText;
+        if (contactData.tiktok) ttEl.href = contactData.tiktok;
+      }
+      var addrEl = document.getElementById('contactAddress'); if (addrEl && contactData.address) addrEl.textContent = contactData.address;
+      var hoursEl = document.getElementById('contactHours'); if (hoursEl && contactData.hours) hoursEl.textContent = contactData.hours;
+    }
+
+    // Trigger reveal observer for dynamic elements
+    var revealElements = document.querySelectorAll('.reveal');
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.1 });
+    revealElements.forEach(el => observer.observe(el));
   }
 
-  // ─── NEWSLETTER FORMS ─────────────────────────
-  var newsletterForms = document.querySelectorAll('.newsletter-form');
-  newsletterForms.forEach(function(form) {
+  // ─── REAL-TIME SYNCHRONIZATION ─────────────────
+  let lastSyncTime = 0;
+  function syncProductsFromDB() {
+    fetch('api/products.php?t=' + Date.now())
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.products) {
+          var productsChanged = JSON.stringify(data.products) !== JSON.stringify(window.productsData ? window.productsData.all : []);
+          if (productsChanged) {
+            window.productsData = {
+              all: data.products,
+              featured: data.products.slice(0, 4),
+              bestsellers: data.products.filter(p => p.badge === 'Best Seller'),
+              newArrivals: data.products.filter(p => p.badge === 'New' || p.badge === 'New Arrival')
+            };
+            if (data.categories) {
+              window.categoriesData = data.categories;
+            }
+            renderLandingPageData();
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Sync check failed silently:', err);
+      });
+  }
+
+  // Poll DB every 10 seconds for real-time synchronization
+  setInterval(syncProductsFromDB, 10000);
+
+  // ─── INIT ──────────────────────────────────────
+  function initPage() {
+    updateCartBadge();
+    if (window.SASIDA && window.SASIDA.auth && window.SASIDA.auth.updateHeader) {
+      window.SASIDA.auth.updateHeader();
+    }
+    renderLandingPageData();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPage);
+  } else {
+    initPage();
+  }
+
+  // ─── NEWSLETTER ────────────────────────────────
+  document.querySelectorAll('.newsletter-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       var input = form.querySelector('input[type="email"]');
@@ -494,19 +348,9 @@
       if (input && input.value.trim() !== '') {
         if (successMsg) successMsg.classList.add('show');
         input.value = '';
-        setTimeout(function() {
-          if (successMsg) successMsg.classList.remove('show');
-        }, 3000);
+        setTimeout(function() { if (successMsg) successMsg.classList.remove('show'); }, 3000);
       }
     });
-  });
-
-  // ─── CLOSE MOBILE MENU ON RESIZE ──────────────
-  window.addEventListener('resize', function() {
-    if (window.innerWidth > 768) {
-      if (hamburger) hamburger.classList.remove('open');
-      if (mobileMenu) mobileMenu.classList.remove('open');
-    }
   });
 
 })();
